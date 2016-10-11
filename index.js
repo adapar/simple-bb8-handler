@@ -131,6 +131,5 @@ function updateRoll() {
 
 bb8.connect(function() {
   console.log("::CONNECTED::");
-
   start();
 });
