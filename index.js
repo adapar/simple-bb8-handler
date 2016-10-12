@@ -9,20 +9,33 @@ var angle = 0;
 var speedDelta = 10;
 var angleDelta = 10;
 
-var in_calibration = false;
+var inCalibration = false;
 
-var last_color = { red: 0, green: 0, blue: 0 };
+var lastColor = { red:0, green:0, blue:0 };
 
-function calibrate_start() {
+var colorTransitionDelay = 1000;
+
+var colorBlack = { red:0, green:0, blue:0 };
+var colorWhite = { red:255, green:255, blue:255 };
+var colorRed = { red:219, green:10, blue:22 };
+var colorOrange = { red:252, green:99, blue:59 };
+var colorYellow = { red:254, green:245, blue:54 };
+var colorGreen = { red:27, green:186, blue:31 };
+var colorBlue = { red:27, green:158, blue:252 };
+var colorPurple = { red:49, green:18, blue:153 };
+
+var colorSmoothTransitionActive = false;
+
+function calibrateStart() {
   console.log("::START CALIBRATION::");
   bb8.startCalibration();
-  in_calibration = true;
+  inCalibration = true;
 }
 
-function calibrate_end() {
+function calibrateEnd() {
   console.log("::FINISH CALIBRATION::");
   bb8.finishCalibration();
-  in_calibration = false;
+  inCalibration = false;
 }
 
 function accelerate() {
@@ -40,8 +53,8 @@ function decelerate() {
 
 function stop() {
   speed = 0;
+  angle = 0;
   updateRoll();
-  //bb8.stop();
 }
 
 function setAngle(newAngle) {
@@ -65,6 +78,56 @@ function right() {
   updateRoll();
 }
 
+function guardColor(value) {
+  value = Math.ceil(value);
+  if (value > 255) {
+    return 255;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  return value;
+}
+function getColorFromGradient(color1, color2, percent) {
+  return {
+    red: guardColor(color1.red + percent * (color2.red - color1.red))
+    , green: guardColor(color1.green + percent * (color2.green - color1.green))
+    , blue: guardColor(color1.blue + percent * (color2.blue - color1.blue))
+  };
+}
+
+function setColor(color2) {
+  console.log("::SET COLOR::");
+  console.log(" color2: ", color2)
+  if (colorSmoothTransitionActive) {
+    var color1 = lastColor;
+    console.log(" YES DELAY::");
+    console.log(" color1: ", color1);
+    console.log(" colorTransitionDelay: ", colorTransitionDelay)
+    var percent = 0;
+    var percentDelta = 1 / colorTransitionDelay;
+    console.log(" percentDelta: ", percentDelta);
+    var timer = setInterval(function () {
+      console.log(" ::TIMER>");
+      console.log(" percent: ", percent);
+      percent = percent + percentDelta;
+      if (percent > 1) {
+        console.log("   done!");
+        bb8.color(color2);
+        lastColor = color2;
+        clearInterval(timer);
+      } else {
+        var colorX = getColorFromGradient(color1, color2, percent);
+        console.log("   new intermediate color:", colorX);
+        bb8.color(colorX);
+      }
+    }, 1);
+  } else {
+    console.log(" NO DELAY::");
+    bb8.color(color2);
+  }
+}
+
 function checkCollision() {
   console.log("::COLLISION::");  
   console.log("::collision data", data)
@@ -72,6 +135,8 @@ function checkCollision() {
 
 function start() {
   console.log("::START::");
+
+  setColor(lastColor);
 
   keypress(process.stdin);
   
@@ -81,60 +146,66 @@ function start() {
   process.stdin.resume();
 
   bb8.detectCollisions();
-  bb8.streamImuAngles();
 
   bb8.on("collision", checkCollision);
-
-  bb8.on("imuAngles", function(data) {
-    console.log("data:");
-    console.log("  pitchAngle:", data.pitchAngle);
-    console.log("  rollAngle:", data.rollAngle);
-    console.log("  yawAngle:", data.yawAngle);
-  });
 }
 
 function processKey(ch, key) {
   console.log('got "keypress"', key);
 
   if (key) {
-    if (in_calibration) {
+    if (inCalibration) {
       if (key.name == 'c') {
-        calibrate_end();
+        calibrateEnd();
       }
     } else {
       if (key.ctrl === false) {
-        if (key.name == 's') {
-          stop();
-        } else if (key.name == 'c') {
-          calibrate_start();
-        } else if (key.name == 'up') {
-          accelerate();
-        } else if (key.name == 'down') {
-          decelerate();
-        } else if (key.name == 'left') {
-          left();
-        } else if (key.name == 'right') {
-          right();
-        } else if (key.name == 'x') {
-          finish();
+        if (key.shift === false) {
+          if (key.name == 's') {
+            stop();
+          } else if (key.name == 'c') {
+            calibrateStart();
+          } else if (key.name == 'up') {
+            accelerate();
+          } else if (key.name == 'down') {
+            decelerate();
+          } else if (key.name == 'left') {
+            left();
+          } else if (key.name == 'right') {
+            right();
+          } else if (key.name == 'x') {
+            finish();
+          }
+        } else {
+          if (key.name == 't') {
+            colorSmoothTransitionActive = !colorSmoothTransitionActive;
+          }
         }
       } else {
         if (key.name == 'r') {
-          bb8.color("#ff0000");
+          setColor(colorRed);
+        } else if (key.name == 'o') {
+          setColor(colorOrange);
+        } else if (key.name == 'y') {
+          setColor(colorYellow);
         } else if (key.name == 'g') {
-          bb8.color("#00ff00");
+          setColor(colorGreen);
         } else if (key.name == 'b') {
-          bb8.color("#0000ff");
+          setColor(colorBlue);
+        } else if (key.name == 'p') {
+          setColor(colorPurple);
         } else if (key.name == 'n') {
-          bb8.color("#000000");
+          setColor(colorBlack);
+        } else if (key.name == 'w') {
+          setColor(colorWhite);
         } else if (key.name == 'up') {
-          if (!in_calibration) setAngle(0);
+          if (!inCalibration) setAngle(0);
         } else if (key.name == 'down') {
-          if (!in_calibration) setAngle(180);
+          if (!inCalibration) setAngle(180);
         } else if (key.name == 'left') {
-          if (!in_calibration) setAngle(270);
+          if (!inCalibration) setAngle(270);
         } else if (key.name == 'right') {
-          if (!in_calibration) setAngle(90);
+          if (!inCalibration) setAngle(90);
         } 
       }
     }
@@ -146,8 +217,8 @@ function finish() {
   
   process.stdin.pause();
   
-  if (in_calibration) {
-    calibrate_end();
+  if (inCalibration) {
+    calibrateEnd();
   }
 
   bb8.stop();
