@@ -128,7 +128,7 @@ function setColor(color2) {
   }
 }
 
-function checkCollision() {
+function checkCollision(data) {
   console.log("::COLLISION::");  
   console.log("::collision data", data)
 }
@@ -145,6 +145,16 @@ function start() {
   process.stdin.setRawMode(true);
   process.stdin.resume();
 
+  bb8.configureCollisions({
+    meth: 0x01,
+    xt: 0x20,
+    yt: 0x20,
+    xs: 0x10,
+    ys: 0x10,
+    dead: 0x01
+  });
+
+  //bb8.configureCollisions({device: "bb8"});
   bb8.detectCollisions();
 
   bb8.on("collision", checkCollision);
