@@ -11,6 +11,8 @@ var angleDelta = 10;
 
 var in_calibration = false;
 
+var last_color = { red: 0, green: 0, blue: 0 };
+
 function calibrate_start() {
   console.log("::START CALIBRATION::");
   bb8.startCalibration();
@@ -39,6 +41,7 @@ function decelerate() {
 function stop() {
   speed = 0;
   updateRoll();
+  //bb8.stop();
 }
 
 function setAngle(newAngle) {
@@ -62,6 +65,11 @@ function right() {
   updateRoll();
 }
 
+function checkCollision() {
+  console.log("::COLLISION::");  
+  console.log("::collision data", data)
+}
+
 function start() {
   console.log("::START::");
 
@@ -71,34 +79,64 @@ function start() {
    
   process.stdin.setRawMode(true);
   process.stdin.resume();
+
+  bb8.detectCollisions();
+  bb8.streamImuAngles();
+
+  bb8.on("collision", checkCollision);
+
+  bb8.on("imuAngles", function(data) {
+    console.log("data:");
+    console.log("  pitchAngle:", data.pitchAngle);
+    console.log("  rollAngle:", data.rollAngle);
+    console.log("  yawAngle:", data.yawAngle);
+  });
 }
 
 function processKey(ch, key) {
   console.log('got "keypress"', key);
 
   if (key) {
-    if (key.name == 's') {
-      bb8.stop();
-    } else if (key.name == 'c') {
-      if (in_calibration) {
+    if (in_calibration) {
+      if (key.name == 'c') {
         calibrate_end();
-      } else {
-        calibrate_start();
       }
-    } else if (key.name == 'up') {
-      if (!in_calibration) setAngle(0);
-    } else if (key.name == 'down') {
-      if (!in_calibration) setAngle(180);
-    } else if (key.name == 'left') {
-      if (!in_calibration) setAngle(90);
-    } else if (key.name == 'right') {
-      if (!in_calibration) setAngle(270);
-    } else if (key.name == 'a') {
-      if (!in_calibration) accelerate();
-    } else if (key.name == 'z') {
-      if (!in_calibration) decelerate();
-    } else if (key.name == 'x') {
-      finish();
+    } else {
+      if (key.ctrl === false) {
+        if (key.name == 's') {
+          stop();
+        } else if (key.name == 'c') {
+          calibrate_start();
+        } else if (key.name == 'up') {
+          accelerate();
+        } else if (key.name == 'down') {
+          decelerate();
+        } else if (key.name == 'left') {
+          left();
+        } else if (key.name == 'right') {
+          right();
+        } else if (key.name == 'x') {
+          finish();
+        }
+      } else {
+        if (key.name == 'r') {
+          bb8.color("#ff0000");
+        } else if (key.name == 'g') {
+          bb8.color("#00ff00");
+        } else if (key.name == 'b') {
+          bb8.color("#0000ff");
+        } else if (key.name == 'n') {
+          bb8.color("#000000");
+        } else if (key.name == 'up') {
+          if (!in_calibration) setAngle(0);
+        } else if (key.name == 'down') {
+          if (!in_calibration) setAngle(180);
+        } else if (key.name == 'left') {
+          if (!in_calibration) setAngle(270);
+        } else if (key.name == 'right') {
+          if (!in_calibration) setAngle(90);
+        } 
+      }
     }
   }
 }
